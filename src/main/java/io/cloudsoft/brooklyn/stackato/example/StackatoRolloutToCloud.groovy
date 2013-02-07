@@ -1,49 +1,63 @@
 package io.cloudsoft.brooklyn.stackato.example;
 
+import io.cloudsoft.brooklyn.stackato.StackatoDeployment
+import io.cloudsoft.brooklyn.stackato.StackatoDeploymentImpl
+
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-
-import io.cloudsoft.brooklyn.stackato.StackatoDeployment;
-import brooklyn.config.BrooklynProperties;
-import brooklyn.entity.basic.AbstractApplication;
-import brooklyn.entity.dns.geoscaling.GeoscalingDnsService;
+import brooklyn.config.BrooklynProperties
+import brooklyn.entity.basic.AbstractApplication
+import brooklyn.entity.basic.ApplicationBuilder
+import brooklyn.entity.basic.Entities
+import brooklyn.entity.basic.StartableApplication
 import brooklyn.entity.dns.geoscaling.GeoscalingWebClient
 import brooklyn.launcher.BrooklynLauncher
-import brooklyn.location.basic.LocationRegistry;
+import brooklyn.launcher.BrooklynServerDetails
+import brooklyn.location.Location
+
+import com.google.common.collect.ImmutableList
 
 public class StackatoRolloutToCloud extends AbstractApplication {
 
     public static final Logger log = LoggerFactory.getLogger(StackatoRolloutToCloud.class);
-    
-    StackatoDeployment stackato = new StackatoDeployment(this,
-        cluster: "brooklyn-stackato-"+id,
-        domain: "geopaas.org",
-        admin: "me@fun.net",
-        password: "funfunfun",
-        initialNumDeas: 4,
-        minRam: 4096
-    );
 
-    // optionally use a DNS service to configure our domain name
-    static BrooklynProperties config = BrooklynProperties.Factory.newDefault();
-    { 
+	static BrooklynProperties config = BrooklynProperties.Factory.newDefault();
+	
+	@Override
+	public void postConstruct() {
+	    StackatoDeployment stackato = addChild(getEntityManager().createEntity(StackatoDeployment,
+	        cluster: "brooklyn-stackato-"+id,
+	        domain: "geopaas.org",
+	        admin: "me@fun.net",
+	        password: "funfunfun",
+	        initialNumDeas: 4,
+	        minRam: 4096));
+
+		// optionally use a DNS service to configure our domain name
         stackato.useDnsClient(new GeoscalingWebClient(
             config.getFirst("brooklyn.geoscaling.username", failIfNone:true),
             config.getFirst("brooklyn.geoscaling.password", failIfNone:true) )); 
-    }
-
-    public static void main(String[] args) {
+	}
+	
+    public static void main(String[] argv) {
         // choose where you want to deploy
-        String location = "jclouds:hpcloud-compute";
+        //String location = "jclouds:hpcloud-compute";
+		String location = "jclouds:aws-ec2:us-east-1";
+		String webConsolePort = "8081+";
+
+        BrooklynServerDetails server = BrooklynLauncher.newLauncher()
+                .webconsolePort(webConsolePort)
+                .launch();
+
+        StartableApplication app = ApplicationBuilder.builder(StartableApplication.class)
+				.appImpl(StackatoRolloutToCloud.class)
+				.displayName("Stackato")
+				.manage(server.getManagementContext())
         
-        // start it, and the Brooklyn mgmt console
-        StackatoRolloutToCloud app = new StackatoRolloutToCloud();
-		BrooklynLauncher.newLauncher()
-				.webconsolePort("8081+")
-				.managing(app)
-				.launch();
-        app.start([new LocationRegistry().resolve(location)]);
+        Location loc = server.getManagementContext().getLocationRegistry().resolve(location);
+        app.start(ImmutableList.of(loc));
+        
+        Entities.dumpInfo(app);
     }
-    
 }

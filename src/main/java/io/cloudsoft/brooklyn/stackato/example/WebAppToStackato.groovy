@@ -3,20 +3,22 @@ package io.cloudsoft.brooklyn.stackato.example
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-import com.google.common.collect.Iterables
-
 import brooklyn.enricher.basic.AbstractCombiningEnricher
 import brooklyn.entity.basic.AbstractApplication
+import brooklyn.entity.basic.ApplicationBuilder
 import brooklyn.entity.basic.Entities
+import brooklyn.entity.basic.StartableApplication
 import brooklyn.entity.webapp.ElasticJavaWebAppService
 import brooklyn.event.AttributeSensor
-import brooklyn.event.basic.BasicAttributeSensor;
-import brooklyn.extras.cloudfoundry.CloudFoundryJavaWebAppCluster;
+import brooklyn.event.basic.BasicAttributeSensor
+import brooklyn.extras.cloudfoundry.CloudFoundryJavaWebAppCluster
 import brooklyn.launcher.BrooklynLauncher
+import brooklyn.launcher.BrooklynServerDetails
 import brooklyn.location.Location
-import brooklyn.location.basic.LocationRegistry
 import brooklyn.policy.Enricher
-import brooklyn.policy.autoscaling.AutoScalerPolicy;
+import brooklyn.policy.autoscaling.AutoScalerPolicy
+
+import com.google.common.collect.Iterables
 
 public class WebAppToStackato extends AbstractApplication {
 
@@ -65,14 +67,19 @@ public class WebAppToStackato extends AbstractApplication {
         }
     }
 
-    public static void main(String[] args) {
-        // start the app and the Brooklyn mgmt console
-        WebAppToStackato app = new WebAppToStackato();
-        BrooklynLauncher.manage(app, 8082);
-        app.start([new LocationRegistry().resolve("cloudfoundry:"+ENDPOINT)]);
-        
-        // optionally display info
-        Entities.dumpInfo(app);
-    }
-    
+	public static void main(String[] argv) {
+		BrooklynServerDetails server = BrooklynLauncher.newLauncher()
+				.webconsolePort("8081+")
+				.launch();
+
+		StartableApplication app = ApplicationBuilder.builder(StartableApplication.class)
+				.appImpl(WebAppToStackato.class)
+				.displayName("Stackato")
+				.manage(server.getManagementContext())
+		
+        Location loc = server.getManagementContext().getLocationRegistry().resolve("cloudfoundry:"+ENDPOINT);
+		app.start([loc]);
+		
+		Entities.dumpInfo(app);
+	}
 }

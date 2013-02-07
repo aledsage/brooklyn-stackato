@@ -19,7 +19,7 @@ public class StackatoSshDriver extends AbstractSoftwareProcessSshDriver {
     
     StackatoNode node;
     
-    public StackatoSshDriver(StackatoNode entity, SshMachineLocation machine) {
+    public StackatoSshDriver(StackatoNodeImpl entity, SshMachineLocation machine) {
         super(entity, machine);
         this.node = entity;
     }
